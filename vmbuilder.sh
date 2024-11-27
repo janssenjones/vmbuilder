@@ -44,13 +44,15 @@ function get_vmidnumber() {
     read -p "${1} New VM ID number: " number
     if [[ " ${all[*]} " != *" ${number} "* ]]
     then
-        VMID=$number
+        VMID=${number:-$vmidnext}
     else
         get_vmidnumber 'Enter a different number because either you are using it or reserved by the sysem'
     fi
 }
-echo "Enter desired VM ID number (next availabe is $vmidnext) "
+echo "Enter desired VM ID number or press enter to accept default of $vmidnext: "
 get_vmidnumber ''
+
+echo "The VM number will be $VMID"
 
 echo
 read -p "Enter desired VM username: " USER
@@ -184,6 +186,35 @@ echo "The snippet storage path of the user.yaml file will be" $snippetstorage
 echo "The storage for snippets being used is" $snipstorage
 echo
 
+#Checking to see what VMBR interface you want to use
+echo
+echo "Please select VMBR to use for your network"
+declare -a vmbrs=$(awk '{if(/vmbr/) print $2}' /etc/network/interfaces)
+declare -a vmbrsavail=( $(printf "%s\n" "${vmbrs[@]}" | sort -u) )
+
+cnt=${#vmbrsavail[@]}
+for (( i=0;i<cnt;i++)); do
+    vmbrsavail[i]="${vmbrsavail[i]}"
+done
+total_num_vmbrs=${#vmbrsavail[@]}
+vmbrsavail2=$( echo ${vmbrsavail[@]} )
+
+select option in $vmbrsavail2; do
+if [ 1 -le "$REPLY" ] && [ "$REPLY" -le $total_num_vmbrs ];
+then
+#        echo "The selected option is $REPLY"
+#        echo "The selected storage is $option"
+        vmbrused=$option
+        break;
+else
+        echo "Incorrect Input: Select a number 1-$total_num_vmbrs"
+fi
+done
+
+echo "Your network bridge will be on " $vmbrused
+echo
+echo
+
 #VLAN information block
 while true
 do
@@ -192,7 +223,14 @@ do
  case $VLANYESORNO in
      [yY][eE][sS]|[yY])
  echo
- read -p "Enter desired VLAN number for the VM: " VLAN
+ while true
+ do
+  read -p "Enter desired VLAN number for the VM: " VLAN
+  if [[ $VLAN -ge 0 ]] && [[ $VLAN -le 4096 ]]
+  then
+     break
+  fi
+ done
  echo
  break
  ;;
@@ -374,6 +412,30 @@ do
  esac
 done
 
+echo
+
+#while true
+#do
+# read -r -p "Do you want the VM to autostart after you create it here? (Enter Y/n)? " AUTOSTARTS
+#
+# case $AUTOSTARTS in
+#     [yY][eE][sS]|[yY])
+# echo
+# AUTOSTART=yes
+# break
+# ;;
+#     [nN][oO]|[nN])
+#AUTOSTART=no
+# echo
+# break
+#        ;;
+#     *)
+# echo "Invalid input, please enter Y/N or yes/no"
+# ;;
+# esac
+#done
+
+echo
 # This block of code is for picking which node to have the VM on.
 # Couple things it creates the VM on the current node, then migrate's
 # to the node you selected, so must have shared storage (at least for
@@ -393,7 +455,7 @@ then
 localnode=$(cat '/etc/hostname')
 while true
 do
- read -p "Enter Yes/y to pick the node to install the virtual machine onto OR enter No/n to use current node of $localnode " NODESYESNO
+ read -p "Enter Yes/y to pick the node to install the virtual machine onto OR enter No/n to use current node of $localnode : " NODESYESNO
 
  case $NODESYESNO in
      [yY][eE][sS]|[yY])
@@ -433,13 +495,36 @@ else
  NODESYESNO=n
 fi
 echo
+while true
+do
+ read -r -p "Do you want VM protection enabled[Y/n]: " PROTECTVM
+
+ case $PROTECTVM in
+     [yY][eE][sS]|[yY])
+ break
+ ;;
+     [nN][oO]|[nN])
+ break
+        ;;
+     *)
+ echo "INVALID INPUT, PLEASE ENTER [Y/n]"
+ ;;
+ esac
+done
+echo
 echo
 echo "Please select the cloud image you would like to use"
 PS3='Select an option and press Enter: '
-options=("Ubuntu Focal 20.04 Cloud Image" "Ubuntu Minimal Focal 20.04 Cloud Image" "CentOS 7 Cloud Image" "Debian 10 Cloud Image" "Debian 9 Cloud Image" "Ubuntu 18.04 Bionic Image" "CentOS 8 Cloud Image" "Fedora 32 Cloud Image" "Rancher OS Cloud Image")
+options=("Ubuntu Hirsute Hippo 21.04 Cloud Image" "Ubuntu Groovy 20.10 Cloud Image" "Ubuntu Focal 20.04 Cloud Image" "Ubuntu Minimal Focal 20.04 Cloud Image" "CentOS 7 Cloud Image" "Debian 10 Cloud Image" "Debian 9 Cloud Image" "Ubuntu 18.04 Bionic Image" "CentOS 8 Cloud Image" "Fedora 32 Cloud Image" "Rancher OS Cloud Image")
 select osopt in "${options[@]}"
 do
   case $osopt in
+        "Ubuntu Hirsute Hippo 21.04 Cloud Image")
+          [ -f "$isostorage/hirsute-server-cloudimg-amd64-disk-kvm.img" ] && echo && echo "Moving on you have this cloud image" && break || echo && echo "You do not have this cloud image file so we are downloading it now" && echo && wget https://cloud-images.ubuntu.com/hirsute/current/hirsute-server-cloudimg-amd64-disk-kvm.img -P $isostorage && break
+          ;;
+        "Ubuntu Groovy 20.10 Cloud Image")
+          [ -f "$isostorage/groovy-server-cloudimg-amd64-disk-kvm.img" ] && echo && echo "Moving on you have this cloud image" && break || echo && echo "You do not have this cloud image file so we are downloading it now" && echo && wget https://cloud-images.ubuntu.com/daily/server/groovy/current/groovy-server-cloudimg-amd64-disk-kvm.img -P $isostorage && break
+          ;;
         "Ubuntu Focal 20.04 Cloud Image")
           [ -f "$isostorage/focal-server-cloudimg-amd64-disk-kvm.img" ] && echo && echo "Moving on you have this cloud image" && break || echo && echo "You do not have this cloud image file so we are downloading it now" && echo && wget https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64-disk-kvm.img -P $isostorage && break
           ;;
@@ -475,7 +560,13 @@ echo "You have selected Cloud Image $osopt"
 echo
 
 # setting the Cloud Image for later for qm info
-if [ "$osopt" == "Ubuntu Focal 20.04 Cloud Image" ];
+if [ "$osopt" == "Ubuntu Hirsute Hippo 21.04 Cloud Image" ];
+then
+   cloudos=$isostorage'hirsute-server-cloudimg-amd64-disk-kvm.img'
+elif [ "$osopt" == "Ubuntu Groovy 20.10 Cloud Image" ];
+then
+   cloudos=$isostorage'groovy-server-cloudimg-amd64-disk-kvm.img'
+elif [ "$osopt" == "Ubuntu Focal 20.04 Cloud Image" ];
 then
    cloudos=$isostorage'focal-server-cloudimg-amd64-disk-kvm.img'
 elif [ "$osopt" == "Ubuntu Minimal Focal 20.04 Cloud Image" ];
@@ -536,9 +627,9 @@ qm create $VMID --name $NEWHOSTNAME --cores $CORES --onboot 1 --memory $MEMORY -
 
 if [[ $VLANYESORNO =~ ^[Yy]$ || $VLANYESORNO =~ ^[yY][eE][sS] ]]
 then
-    qm set $VMID --net0 virtio,bridge=vmbr0,tag=$VLAN
+    qm set $VMID --net0 virtio,bridge=$vmbrused,tag=$VLAN
 else
-    qm set $VMID --net0 virtio,bridge=vmbr0
+    qm set $VMID --net0 virtio,bridge=$vmbrused
 fi
 
 # import the downloaded disk to local-lvm storage
@@ -579,11 +670,49 @@ then
     qm resize $VMID scsi0 +"$ADDDISKSIZE"G
 fi
 
+if [[ "$PROTECTVM" =~ ^[Yy]$ || "$PROTECTVM" =~ ^[yY][eE][sS] ]]
+then
+    qm set "$VMID" --protection 1
+else
+    qm set "$VMID" --protection 0
+fi
+
+# Disabling tablet mode, usually is enabled but don't need it
+qm set $VMID --tablet 0
+
 # Setting the cloud-init user information
 qm set $VMID --cicustom "user=$snipstorage:snippets/$VMID.yaml"
 
+echo
+while true
+do
+ read -r -p "Do you want to turn this into a TEMPLATE VM [Y/n]: " TEMPLATEVM
+
+ case "$TEMPLATEVM" in
+     [yY][eE][sS]|[yY])
+ break
+ ;;
+     [nN][oO]|[nN])
+ break
+        ;;
+     *)
+ echo "INVALID INPUT, PLEASE ENTER [Y/n]"
+ ;;
+ esac
+done
+
+if [[ "$TEMPLATEVM" =~ ^[Yy]$ || "$TEMPLATEVM" =~ ^[yY][eE][sS] ]]
+then
+    qm template "$VMID"
+    echo "You can now use this as a template"
+    exit 0
+fi
+
 ## Start the VM after Creation!!!!
-qm start $VMID
+if [[ $AUTOSTART =~ ^[Yy]$ || $AUTOSTART =~ ^[yY][eE][sS] ]]
+then
+    qm start $VMID
+fi
 
 # Migrating VM to the correct node if selected
 if [[ $NODESYESNO =~ ^[Yy]$ || $NODESYESNO =~ ^[yY][eE][sS] ]]

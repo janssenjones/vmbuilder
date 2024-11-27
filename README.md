@@ -1,5 +1,15 @@
 README
 
+
+** January 12th, 2022 **
+
+This script still works in a new proxmox environment.  If there are issues you have please opne an issue and I will look into it.  Also make sure you have snippets setup becuase that appears to be a common issue when running the script, so make snippets are setup in proxmox or issues will arise.  I will look into updating the cloud images avaiable.
+
+So I had to update to remove autostart after creation, because it was creating issues with the custom cloud-init from the script.  I don't know why but I am looking into it.  Now after creating the VM you should just be able to click start and after boot up and all that your custom values from the script should be usuable like the username and password.
+
+*****************************
+
+
 Proxmox Virtual Machine Builder with Cloud Images
 
 You can have a virtual machine created and booted with the information you set within two minutes. Auto downloads the cloud image if you need it and once all the information is set it auto starts it for you.
@@ -40,6 +50,7 @@ Features
    - If you want to resize the cloud image storage so you can have more space
    - It lets you set the number of cores and memory for the Virtual Machine
    - Asks if you want it to install qemu-guest-agent (see Proxmox's wiki for more infomation) - Great to have out of the box from the Admin side of Proxmox
+   - Added the option to start after creation or not to start
    - Asks what Proxmox node to have the VM running after all is complete
    - Makes it simple to learn some of the CLI of proxmox (by reviewing the script) and some awesome built in featues of Proxmox to get things up and running fast and easily
  Cloud Images currently available with this script
@@ -53,8 +64,32 @@ Features
    - Rancher OS
    - Fedora 32
    - More to come or request one to be added to this script
-  
-  
+
+ Added 2/10/2021
+   - VM's now have a default VGA set to QXL
+   - VM's now have the machine set to q35
+   - Took out asking for password several times
+   - Took out some un-needed things that were pointed out
+   - Working on removing a few more things that are really not needed
+
+ Added 01/06/2021
+   - Can now only select VLANS between 0 and 4096
+
+ Added 01/03/2021
+   - Can now select which VMBR to use
+
+ Added 01/02/2021
+   - Tablet pointer is disabled by default
+   - Cleaned up some of the wording
+   - Working on VMBR choices - hopefully in a day or two I will have that option avail
+   
+ Added 12/04/2020
+   - Option to just hit enter on VMID number and accept default
+
+ Added 11/26/2020
+   - Option to enable protection on the VM
+   - Option to turn it into a template
+   - Added Ubuntu Groovy 20.10 Cloud Image as an option  
   
  Future things for the script
   
